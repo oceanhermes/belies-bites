@@ -1,0 +1,81 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+}
+model Admin {
+ id String @id @default(cuid())
+ email String @unique
+ passwordHash String
+ sessions Session[]
+}
+model Session {
+ tokenHash String @id
+ adminId String
+ admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+ expiresAt DateTime
+}
+model Preorder {
+ id String @id @default(cuid())
+ title String
+ active Boolean @default(false)
+ startsAt DateTime
+ closesAt DateTime
+ menus Menu[]
+ orders Order[]
+}
+model Menu {
+ id String @id @default(cuid())
+ preorderId String
+ preorder Preorder @relation(fields:[preorderId], references:[id])
+ name String
+ description String
+ price Int
+ available Boolean @default(true)
+}
+model Order {
+ id String @id @default(cuid())
+ code String @unique
+ trackingHash String @unique
+ requestKey String @unique
+ preorderId String
+ preorder Preorder @relation(fields:[preorderId], references:[id])
+ name String
+ phone String
+ payment String
+ delivery String
+ location String
+ notes String
+ consent Boolean
+ total Int
+ items Json
+ status String @default("PENDING")
+ cancelReason String?
+ proofKey String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ notifications Notification[]
+}
+model Notification {
+ id String @id @default(cuid())
+ orderId String
+ order Order @relation(fields:[orderId], references:[id])
+ event String
+ message String
+ state String @default("QUEUED")
+ attempts Int @default(0)
+ nextAt DateTime @default(now())
+ lockedAt DateTime?
+ providerId String?
+ lastError String?
+ createdAt DateTime @default(now())
+ @@unique([orderId,event])
+ @@index([state,nextAt])
+}
+model RateLimit {
+ key String @id
+ count Int @default(1)
+ expiresAt DateTime
+}
