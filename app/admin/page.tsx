@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { preorderInput, wibToISO, wibDate } from "../../lib/preorder";
 const labels: Record<string, string> = {
   PENDING: "Pending",
   PROCESSING: "Proses",
@@ -18,6 +19,9 @@ const next: Record<string, string[]> = {
 };
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 export default function Admin() {
+  const [batchError, setBatchError] = useState("");
+  const [batchSuccess, setBatchSuccess] = useState("");
+  const [creatingBatch, setCreatingBatch] = useState(false);
   const [data, setData] = useState<any>(null),
     [error, setError] = useState(""),
     [query, setQuery] = useState(""),
@@ -30,7 +34,12 @@ export default function Admin() {
       body: body ? JSON.stringify(body) : undefined,
     });
     const d = await r.json();
-    if (!r.ok) throw Error(d.error);
+    if (!r.ok)
+      throw Error(
+        d.details?.length
+          ? d.details.join("; ")
+          : d.error || "Permintaan gagal",
+      );
     return d;
   }
   async function refresh() {
@@ -428,34 +437,120 @@ export default function Admin() {
               </details>
             </section>
           ))}
-          <details className="card manage">
+          <details className="card manage" id="new-batch">
             <summary>+ Buat periode PO baru</summary>
+            <p>
+              Isi nama dan jadwal dalam WIB. Batch baru disimpan sebagai
+              nonaktif; tambahkan menu lalu aktifkan ketika sudah siap.
+            </p>
+            {batchError && (
+              <p className="alert" role="alert">
+                {batchError}
+              </p>
+            )}
+            {batchSuccess && (
+              <p className="batch-success" role="status">
+                {batchSuccess}
+              </p>
+            )}
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                action(() =>
-                  api("admin/preorders", "POST", {
+                if (creatingBatch) return;
+                const form = e.currentTarget;
+                const f = new FormData(form);
+                setBatchError("");
+                setBatchSuccess("");
+                setCreatingBatch(true);
+                try {
+                  const parsed = preorderInput.safeParse({
                     title: f.get("title"),
-                    startsAt: new Date(String(f.get("startsAt"))).toISOString(),
-                    closesAt: new Date(String(f.get("closesAt"))).toISOString(),
-                  }),
-                );
+                    startsAt: wibToISO(
+                      String(f.get("startDate")),
+                      String(f.get("startTime")),
+                    ),
+                    closesAt: wibToISO(
+                      String(f.get("closeDate")),
+                      String(f.get("closeTime")),
+                    ),
+                  });
+                  if (!parsed.success)
+                    throw Error(
+                      parsed.error.issues.map((i) => i.message).join(". "),
+                    );
+                  const created = await api(
+                    "admin/preorders",
+                    "POST",
+                    parsed.data,
+                  );
+                  const updated = await api("admin/dashboard");
+                  setData(updated);
+                  setBatchSuccess(
+                    `Batch "${created.title}" berhasil dibuat. Tambahkan menu di kartu batch, kemudian klik Aktifkan PO.`,
+                  );
+                  form.reset();
+                } catch (e) {
+                  setBatchError((e as Error).message);
+                } finally {
+                  setCreatingBatch(false);
+                }
               }}
             >
               <label>
                 Nama batch
-                <input name="title" required />
+                <input
+                  name="title"
+                  placeholder="Contoh: Batch 02 — Gabin akhir pekan"
+                  minLength={2}
+                  maxLength={100}
+                  required
+                />
               </label>
-              <label>
-                Mulai (zona waktu perangkat ini)
-                <input name="startsAt" type="datetime-local" required />
-              </label>
-              <label>
-                Tutup (zona waktu perangkat ini)
-                <input name="closesAt" type="datetime-local" required />
-              </label>
-              <button disabled={busy}>Buat PO nonaktif</button>
+              <fieldset className="batch-schedule">
+                <legend>Mulai (WIB)</legend>
+                <label>
+                  Tanggal mulai
+                  <input
+                    name="startDate"
+                    type="date"
+                    defaultValue={wibDate()}
+                    required
+                  />
+                </label>
+                <label>
+                  Jam mulai
+                  <input
+                    name="startTime"
+                    type="time"
+                    defaultValue="08:00"
+                    required
+                  />
+                </label>
+              </fieldset>
+              <fieldset className="batch-schedule">
+                <legend>Tutup (WIB)</legend>
+                <label>
+                  Tanggal tutup
+                  <input
+                    name="closeDate"
+                    type="date"
+                    defaultValue={wibDate(new Date(Date.now() + 86400000))}
+                    required
+                  />
+                </label>
+                <label>
+                  Jam tutup
+                  <input
+                    name="closeTime"
+                    type="time"
+                    defaultValue="20:00"
+                    required
+                  />
+                </label>
+              </fieldset>
+              <button disabled={creatingBatch || busy}>
+                {creatingBatch ? "Menyimpan batch…" : "Buat batch"}
+              </button>
             </form>
           </details>
         </>

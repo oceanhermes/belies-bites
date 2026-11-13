@@ -1050,3 +1050,31 @@ small {
     font-size: 11px;
   }
 }
+.batch-schedule {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 15px;
+  margin: 18px 0;
+  padding: 5px 16px 16px;
+}
+.batch-schedule legend {
+  font-size: 13px;
+  font-weight: bold;
+  padding: 0 6px;
+}
+.batch-schedule label {
+  margin-top: 8px;
+}
+.batch-success {
+  background: #e7f0df;
+  color: #304d39;
+  padding: 14px;
+  border-radius: 8px;
+}
+@media (max-width: 450px) {
+  .batch-schedule {
+    grid-template-columns: 1fr;
+  }
+}

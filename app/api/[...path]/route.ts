@@ -1,3 +1,4 @@
+import { preorderInput } from "../../../lib/preorder";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { compare } from "bcryptjs";
@@ -290,15 +291,7 @@ async function handle(
         });
       }
       if (p === "admin/preorders" && method === "POST") {
-        const f = z
-          .object({
-            title: z.string().trim().min(2).max(100),
-            startsAt: z.iso.datetime(),
-            closesAt: z.iso.datetime(),
-          })
-          .parse(await req.json());
-        if (f.startsAt >= f.closesAt)
-          throw Error("Tanggal penutupan harus setelah pembukaan");
+        const f = preorderInput.parse(await req.json());
         return json(
           await db.preorder.create({ data: { ...f, active: false } }),
         );
