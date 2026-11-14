@@ -1,3 +1,9 @@
+import {
+  quotaInput,
+  withQuota,
+  usageFor,
+  assertCapacity,
+} from "../../../lib/quota";
 import { simulationDocument } from "../../../lib/simulation-document";
 import { simulationDraftInput } from "../../../lib/simulation-schema";
 import { preorderInput } from "../../../lib/preorder";
@@ -48,7 +54,7 @@ async function handle(
         orderBy: { startsAt: "desc" },
       });
       return json({
-        preorder: po,
+        preorder: po ? await withQuota(db, po) : null,
         qris: process.env.QRIS_IMAGE_URL || null,
         whatsappEnabled: process.env.WHATSAPP_ENABLED === "true",
       });
@@ -197,6 +203,22 @@ async function handle(
                 quantity: i.quantity,
               };
             });
+            const used = await usageFor(tx, po.id);
+            assertCapacity(
+              po.quota,
+              used.total,
+              items.reduce((n, i) => n + i.quantity, 0),
+              "batch",
+            );
+            for (const item of items) {
+              const menu = po.menus.find((m) => m.id === item.id)!;
+              assertCapacity(
+                menu.quota,
+                used.menus[item.id] || 0,
+                item.quantity,
+                menu.name,
+              );
+            }
             const total = items.reduce((a, i) => a + i.price * i.quantity, 0);
             const o = await tx.order.create({
               data: {
@@ -335,10 +357,14 @@ async function handle(
             orderBy: { createdAt: "desc" },
             take: 300,
           }),
-          preorders: await db.preorder.findMany({
-            include: { menus: true },
-            orderBy: { startsAt: "desc" },
-          }),
+          preorders: await Promise.all(
+            (
+              await db.preorder.findMany({
+                include: { menus: true },
+                orderBy: { startsAt: "desc" },
+              })
+            ).map((po) => withQuota(db, po)),
+          ),
         });
       }
       if (p === "admin/preorders" && method === "POST") {
@@ -349,9 +375,24 @@ async function handle(
       }
       const poMatch = p.match(/^admin\/preorders\/([^/]+)$/);
       if (poMatch && method === "PATCH") {
-        const f = z.object({ active: z.boolean() }).parse(await req.json());
+        const f = z
+          .object({
+            active: z.boolean().optional(),
+            quota: quotaInput.optional(),
+          })
+          .refine((v) => v.active !== undefined || v.quota !== undefined, {
+            message: "Tidak ada perubahan",
+          })
+          .parse(await req.json());
         await db.$transaction(
           async (tx) => {
+            if (f.quota !== undefined && f.quota !== null) {
+              const used = await usageFor(tx, poMatch[1]);
+              if (f.quota < used.total)
+                throw Error(
+                  `Kuota batch tidak boleh kurang dari ${used.total} box yang sudah dipesan.`,
+                );
+            }
             if (f.active)
               await tx.preorder.updateMany({ data: { active: false } });
             await tx.preorder.update({ where: { id: poMatch[1] }, data: f });
@@ -367,6 +408,7 @@ async function handle(
             name: z.string().trim().min(2).max(80),
             description: z.string().max(200),
             price: z.number().int().min(1000).max(10000000),
+            quota: quotaInput.optional(),
           })
           .parse(await req.json());
         return json(await db.menu.create({ data: f }));
@@ -378,11 +420,30 @@ async function handle(
             name: z.string().trim().min(2).max(80),
             description: z.string().max(200),
             price: z.number().int().min(1000).max(10000000),
+            quota: quotaInput.optional(),
             available: z.boolean(),
           })
           .partial()
           .parse(await req.json());
-        return json(await db.menu.update({ where: { id: mm[1] }, data: f }));
+        return json(
+          await db.$transaction(
+            async (tx) => {
+              const menu = await tx.menu.findUniqueOrThrow({
+                where: { id: mm[1] },
+              });
+              if (f.quota !== undefined && f.quota !== null) {
+                const used = await usageFor(tx, menu.preorderId);
+                const sold = used.menus[menu.id] || 0;
+                if (f.quota < sold)
+                  throw Error(
+                    `Kuota varian tidak boleh kurang dari ${sold} box yang sudah dipesan.`,
+                  );
+              }
+              return tx.menu.update({ where: { id: menu.id }, data: f });
+            },
+            { isolationLevel: "Serializable" },
+          ),
+        );
       }
       const sm = p.match(/^admin\/orders\/([^/]+)\/status$/);
       if (sm && method === "PATCH") {

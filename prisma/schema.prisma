@@ -18,6 +18,7 @@ model Session {
  expiresAt DateTime
 }
 model Preorder {
+ quota Int?
  id String @id @default(cuid())
  title String
  active Boolean @default(false)
@@ -27,6 +28,7 @@ model Preorder {
  orders Order[]
 }
 model Menu {
+ quota Int?
  id String @id @default(cuid())
  preorderId String
  preorder Preorder @relation(fields:[preorderId], references:[id])
@@ -57,6 +59,7 @@ model Order {
  createdAt DateTime @default(now())
  updatedAt DateTime @updatedAt
  notifications Notification[]
+ @@index([preorderId,status])
 }
 model Notification {
  id String @id @default(cuid())

@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { quotaInput } from "./quota";
 export const preorderInput = z
   .object({
+    quota: quotaInput.optional(),
     title: z
       .string()
       .trim()

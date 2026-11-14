@@ -1,7 +1,22 @@
 "use client";
 import { useEffect, useState } from "react";
-type Menu = { id: string; name: string; description: string; price: number };
-type PO = { id: string; title: string; closesAt: string; menus: Menu[] };
+type Menu = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  remaining: number | null;
+  orderable: number | null;
+};
+type PO = {
+  id: string;
+  title: string;
+  closesAt: string;
+  menus: Menu[];
+  remaining: number | null;
+  used: number;
+  quota: number | null;
+};
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const labels: Record<string, string> = {
   PENDING: "Menunggu konfirmasi",
@@ -25,15 +40,28 @@ export default function Home() {
     [order, setOrder] = useState<any>(null),
     [key, setKey] = useState("");
   useEffect(() => {
-    fetch("/api/preorders/active")
-      .then(async (r) => {
+    let active = true;
+    async function refreshQuota() {
+      try {
+        const r = await fetch("/api/preorders/active", { cache: "no-store" });
         const d = await r.json();
         if (!r.ok) throw Error(d.error);
-        setPo(d.preorder);
-        setQris(d.qris || "");
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+        if (active) {
+          setPo(d.preorder);
+          setQris(d.qris || "");
+        }
+      } catch (e) {
+        if (active) setError((e as Error).message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    refreshQuota();
+    const interval = setInterval(refreshQuota, 15000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshQuota();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     const url = new URL(location.href);
     if (url.searchParams.has("cek")) setModal("track");
     const t = url.searchParams.get("track");
@@ -41,10 +69,30 @@ export default function Home() {
       loadOrder(t);
       history.replaceState(null, "", "/");
     }
+    return () => {
+      active = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
   const items = po?.menus.filter((m) => cart[m.id]) || [],
     total = items.reduce((a, m) => a + m.price * cart[m.id], 0);
+  const cartCount = items.reduce((n, m) => n + cart[m.id], 0);
+  const capacityOK =
+    !!po &&
+    (po.remaining === null || cartCount <= po.remaining) &&
+    items.every((m) => m.orderable === null || cart[m.id] <= m.orderable);
+  function canAdd(m: Menu) {
+    return (
+      (m.orderable === null || (cart[m.id] || 0) < m.orderable) &&
+      (po?.remaining === null || cartCount < (po?.remaining ?? 0)) &&
+      (cart[m.id] || 0) < 50
+    );
+  }
   function add(id: string, n: number) {
+    const m = po?.menus.find((m) => m.id === id);
+    if (!m) return;
+    if (n > 0 && !canAdd(m)) return;
     setCart((c) => ({
       ...c,
       [id]: Math.max(0, Math.min(50, (c[id] || 0) + n)),
@@ -72,6 +120,10 @@ export default function Home() {
   }
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!capacityOK) {
+      setError("Sisa kuota berubah. Sesuaikan keranjang sebelum memesan.");
+      return;
+    }
     setBusy(true);
     setError("");
     const f = new FormData(e.currentTarget),
@@ -96,6 +148,12 @@ export default function Home() {
       setResult(d);
       setCart({});
       setModal("success");
+      fetch("/api/preorders/active", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if ("preorder" in d) setPo(d.preorder);
+        })
+        .catch(() => {});
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -256,7 +314,15 @@ export default function Home() {
                 : "Menu dapat dipesan ketika admin membuka pre-order."}
             </p>
           </div>
-          <span>Fresh dibuat sesuai pesanan ♡</span>
+          <span className="quota-badge">
+            {po
+              ? po.remaining === null
+                ? "Kuota tanpa batas"
+                : po.remaining === 0
+                  ? "Kuota batch penuh"
+                  : `Sisa kuota batch: ${po.remaining} box`
+              : "Fresh dibuat sesuai pesanan ♡"}
+          </span>
         </section>
         <div className="sectionhead" id="menu">
           <div>
@@ -284,8 +350,19 @@ export default function Home() {
                     <b>
                       {rp(m.price)} <small>/ box</small>
                     </b>
-                    <button className="outline" onClick={() => add(m.id, 1)}>
-                      + Tambah
+                    <span className="menu-quota">
+                      {m.orderable === null
+                        ? "Tersedia untuk pre-order"
+                        : m.orderable === 0
+                          ? "Kuota habis"
+                          : `Tersedia ${m.orderable} box`}
+                    </span>
+                    <button
+                      className="outline"
+                      disabled={!canAdd(m)}
+                      onClick={() => add(m.id, 1)}
+                    >
+                      {m.orderable === 0 ? "Kuota habis" : "+ Tambah"}
                     </button>
                   </div>
                 </div>
@@ -336,6 +413,7 @@ export default function Home() {
                     {cart[m.id]}
                     <button
                       onClick={() => add(m.id, 1)}
+                      disabled={!canAdd(m)}
                       aria-label={"Tambah " + m.name}
                     >
                       +
@@ -350,7 +428,7 @@ export default function Home() {
             </div>
             <button
               className="full"
-              disabled={!items.length}
+              disabled={!items.length || !capacityOK}
               onClick={() => {
                 setError("");
                 setKey(crypto.randomUUID());
@@ -359,7 +437,18 @@ export default function Home() {
             >
               Lanjut pemesanan →
             </button>
-            <p className="note">Ongkir dikonfirmasi admin secara terpisah.</p>
+            {!capacityOK && items.length > 0 && (
+              <p className="alert" role="alert">
+                Sisa kuota berubah. Kurangi jumlah di keranjang sebelum
+                checkout.
+              </p>
+            )}
+            <p className="note">
+              Ongkir dikonfirmasi admin secara terpisah.
+              <br />
+              Kuota diperbarui setiap 15 detik dan diperiksa lagi saat pesanan
+              dikirim.
+            </p>
           </aside>
         </div>
         <div className="benefits">

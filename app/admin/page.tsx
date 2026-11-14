@@ -594,6 +594,48 @@ export default function Admin() {
                         {p.active ? "Tutup PO" : "Aktifkan PO"}
                       </button>
                     </div>
+                    <form
+                      className="quota-settings"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const f = new FormData(e.currentTarget);
+                        action(() =>
+                          api("admin/preorders/" + p.id, "PATCH", {
+                            quota:
+                              f.get("quota") === ""
+                                ? null
+                                : Number(f.get("quota")),
+                          }),
+                        );
+                      }}
+                    >
+                      <label>
+                        Kuota batch (box)
+                        <input
+                          key={p.quota ?? "unlimited"}
+                          name="quota"
+                          type="number"
+                          min={p.used}
+                          max={1000000}
+                          step={1}
+                          defaultValue={p.quota ?? ""}
+                          placeholder="Tanpa batas"
+                        />
+                      </label>
+                      <p>
+                        Terpesan: <b>{p.used} box</b> · Sisa:{" "}
+                        <b>
+                          {p.remaining === null
+                            ? "Tanpa batas"
+                            : p.remaining + " box"}
+                        </b>
+                      </p>
+                      <button disabled={busy}>Simpan kuota batch</button>
+                    </form>
+                    <p className="note">
+                      Kuota dihitung per box. Kosong = tanpa batas, 0 = penuh.
+                      Pesanan batal tidak memakai kuota.
+                    </p>
                     {p.menus.map((m: any) => (
                       <form
                         key={m.id}
@@ -607,6 +649,10 @@ export default function Admin() {
                               description: f.get("description"),
                               price: Number(f.get("price")),
                               available: f.get("available") === "on",
+                              quota:
+                                f.get("quota") === ""
+                                  ? null
+                                  : Number(f.get("quota")),
                             }),
                           );
                         }}
@@ -630,6 +676,24 @@ export default function Admin() {
                           min={1000}
                           required
                         />
+                        <label>
+                          Kuota varian (box)
+                          <input
+                            key={m.quota ?? "unlimited"}
+                            name="quota"
+                            type="number"
+                            min={m.used}
+                            max={1000000}
+                            step={1}
+                            defaultValue={m.quota ?? ""}
+                            placeholder="Tanpa batas"
+                          />
+                          <small>
+                            Terpesan {m.used} · Sisa varian{" "}
+                            {m.remaining === null ? "∞" : m.remaining} · Bisa
+                            dipesan {m.orderable === null ? "∞" : m.orderable}
+                          </small>
+                        </label>
                         <label className="checklabel">
                           <input
                             type="checkbox"
@@ -651,6 +715,10 @@ export default function Admin() {
                           action(() =>
                             api("admin/menus", "POST", {
                               preorderId: p.id,
+                              quota:
+                                f.get("quota") === ""
+                                  ? null
+                                  : Number(f.get("quota")),
                               name: f.get("name"),
                               description: f.get("description"),
                               price: Number(f.get("price")),
@@ -671,6 +739,17 @@ export default function Admin() {
                           min={1000}
                           required
                         />
+                        <label>
+                          Kuota varian (box)
+                          <input
+                            name="quota"
+                            type="number"
+                            min={0}
+                            max={1000000}
+                            step={1}
+                            placeholder="Tanpa batas"
+                          />
+                        </label>
                         <button disabled={busy}>Tambah</button>
                       </form>
                     </details>
@@ -704,6 +783,10 @@ export default function Admin() {
                       try {
                         const parsed = preorderInput.safeParse({
                           title: f.get("title"),
+                          quota:
+                            f.get("quota") === ""
+                              ? null
+                              : Number(f.get("quota")),
                           startsAt: wibToISO(
                             String(f.get("startDate")),
                             String(f.get("startTime")),
@@ -745,6 +828,17 @@ export default function Admin() {
                         minLength={2}
                         maxLength={100}
                         required
+                      />
+                    </label>
+                    <label>
+                      Kuota batch (box)
+                      <input
+                        name="quota"
+                        type="number"
+                        min={0}
+                        max={1000000}
+                        step={1}
+                        placeholder="Kosongkan untuk tanpa batas"
                       />
                     </label>
                     <fieldset className="batch-schedule">

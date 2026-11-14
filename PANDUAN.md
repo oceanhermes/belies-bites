@@ -67,3 +67,15 @@ docker compose up -d web worker
 ```
 
 Untuk hosting selain Docker, jalankan `npm run db:migrate` dengan DATABASE_URL produksi yang sesuai sebelum menjalankan build baru. Tidak perlu menjalankan seed ulang.
+
+## Kuota batch dan varian
+
+Kuota menggunakan **box**, mengikuti jumlah pembelian di katalog. Di Batch & Menu, atur kuota batch untuk total seluruh varian, dan kuota varian sebagai batas tambahan masing-masing menu. Kolom kosong berarti tanpa batas, angka 0 berarti kuota penuh/tidak menerima tambahan. Kuota tidak boleh diturunkan di bawah jumlah yang sudah dipesan.
+
+Semua pesanan selain CANCELLED memakai kuota, termasuk PENDING dan COMPLETED. Pembatalan membebaskan kuota sekali; belum ada pelepasan otomatis berdasarkan batas waktu pembayaran. Sisa kuota dihitung dari pesanan yang sudah tersimpan, sehingga riwayat lama ikut dihitung. Batch/menu lama tetap tanpa batas sampai admin memasang kuota.
+
+Katalog mengambil pembaruan setiap 15 detik dan ketika tab browser kembali dibuka. Angka katalog adalah informasi saat pembaruan terakhir, bukan reservasi. Kuota baru terpakai ketika pesanan berhasil disimpan. Backend memeriksa jumlah seluruh item dan per-varian dalam transaksi PostgreSQL Serializable. Konflik checkout bersamaan dapat ditolak dengan pesan untuk mencoba lagi, tanpa melampaui kuota.
+
+Pembaruan ini memerlukan `npm run db:migrate` pada database server sebelum web baru dijalankan. Untuk Docker ikuti langkah migrasi pembaruan di atas. Tidak perlu seed ulang.
+
+Pengujian kuota terhadap aplikasi/database uji terpisah: set TEST_APP_URL, TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD, lalu jalankan `node scripts/quota-integration.cjs`. Tes membuat batch/pesanan uji dan menonaktifkan batch setelah selesai; jangan gunakan di produksi.

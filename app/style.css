@@ -2689,3 +2689,53 @@ body:has(.admin-workspace) > footer {
     flex-wrap: wrap;
   }
 }
+.quota-settings {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: #fff1d2;
+  padding: 15px 20px;
+  border-radius: 16px;
+  margin-bottom: 15px;
+}
+.quota-settings label {
+  margin: 0;
+  max-width: 220px;
+}
+.quota-settings p {
+  font-size: 12px;
+  color: #8b6b50;
+}
+.quota-settings button {
+  margin: 0;
+}
+.admin-workspace .menuform label:not(.checklabel) {
+  min-width: 175px;
+  flex: 1;
+}
+.admin-workspace .menuform label small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.7;
+  margin-top: 6px;
+}
+.menu-quota {
+  font-size: 11px;
+  color: #8b6453;
+  width: 100%;
+}
+.storefront .quota-badge {
+  background: #ffe989;
+  border-radius: 18px;
+  padding: 10px 15px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.storefront .price {
+  flex-wrap: wrap;
+}
+.storefront button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
