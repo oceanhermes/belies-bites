@@ -15,9 +15,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <nav>
             <a href="/#menu">Menu pre-order</a>
             <a href="/?cek=1">Cek pesanan</a>
-            <a className="button outline" href="/admin">
-              Admin ↗
-            </a>
           </nav>
         </header>
         {children}
