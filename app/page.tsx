@@ -104,32 +104,133 @@ export default function Home() {
   }
   return (
     <>
-      <main>
-        <section className="hero">
-          <div>
-            <span className="badge">● &nbsp; HOMEMADE, WITH LOVE</span>
+      <main className="storefront">
+        <section className="hero candy-hero">
+          <span className="hero-doodle" aria-hidden="true">
+            ✳︎
+          </span>
+          <div className="hero-copy">
+            <span className="badge">GABIN HOMEMADE · DIBUAT DENGAN HATI</span>
             <h1>
-              Sedikit renyah.
+              GIGIT KECIL,
               <br />
-              Banyak <em>bahagianya.</em>
+              <em>BAHAGIA</em>
+              <br />
+              BESAR.
             </h1>
             <p>
-              Gabin dengan isian lembut yang bikin kangen. Dibuat fresh khusus
-              untukmu, satu pre-order setiap waktu.
+              Renyahnya bikin senyum. Lembutnya bikin kangen.
+              <br />
+              Kenalan sama teman manis untuk hari-harimu.
             </p>
-            <small>
-              ✧ Freshly made &nbsp; · &nbsp; Bahan pilihan &nbsp; · &nbsp; Tanpa
-              pengawet
-            </small>
-          </div>
-          <div className="heroart">
-            <div className="plate">
-              <i className="gabin" />
-              <i className="gabin" />
+            <div className="hero-actions">
+              <a className="button" href="#menu">
+                Pilih gabinmu ↗
+              </a>
+              <a className="button outline" href="/?cek=1">
+                Cek pesanan
+              </a>
             </div>
-            <span>A little bite of happiness ♡</span>
+          </div>
+          <div className="candy-art">
+            <img
+              src="/gabin-stack.svg"
+              alt="Ilustrasi tumpukan gabin renyah dengan isian vla"
+            />
+            <span className="round-sticker">
+              FRESHLY
+              <br />
+              MADE
+              <br />♡
+            </span>
+            <span className="art-caption">a little bite of happiness!</span>
           </div>
         </section>
+        <div className="ribbon" aria-hidden="true">
+          <span>
+            BELIES.BITES ✳︎ RENYAH DI LUAR, LEMBUT DI DALAM ✳︎ LITTLE BITES, BIG
+            SMILES ✳︎ BELIES.BITES ✳︎
+          </span>
+        </div>
+        <section className="moments" aria-label="Gabin untuk setiap momen">
+          <div>
+            <span>01 / ME TIME</span>
+            <h3>
+              Teman santai
+              <br />
+              paling manis.
+            </h3>
+            <p>Satu gigitan, mood langsung naik.</p>
+          </div>
+          <div>
+            <span>02 / SHARING TIME</span>
+            <h3>
+              Yang enak,
+              <br />
+              jangan sendiri.
+            </h3>
+            <p>Berbagi gabin, berbagi bahagia.</p>
+          </div>
+          <div>
+            <span>03 / ANYTIME</span>
+            <h3>
+              Hari biasa,
+              <br />
+              rasa istimewa.
+            </h3>
+            <p>Selalu ada alasan buat ngemil.</p>
+          </div>
+        </section>
+        <section className="why-bites">
+          <span className="badge">KENAPA BELIES.BITES?</span>
+          <h2>
+            KECIL GABINNYA.
+            <br />
+            BESAR PERHATIANNYA.
+          </h2>
+          <span className="why-flower" aria-hidden="true">
+            ✿︎
+          </span>
+          <div className="promise-cards">
+            {[
+              [
+                "01",
+                "DIBUAT FRESH, BUKAN ASAL JADI.",
+                "Kami buat sesuai pre-order, supaya setiap gigitan terasa spesial.",
+              ],
+              [
+                "02",
+                "RENYAH DI LUAR. LEMBUT DI DALAM.",
+                "Biskuit gabin dan vla lembut. Pasangannya pas, rasanya bikin kangen.",
+              ],
+              [
+                "03",
+                "PILIH RASA FAVORITMU.",
+                "Dari yang klasik sampai yang manis, cari teman ngemil versimu.",
+              ],
+              [
+                "04",
+                "PESANNYA GAMPANG BANGET.",
+                "Pilih menu, isi form, lalu tunggu kabar pesananmu lewat WhatsApp.",
+              ],
+            ].map(([n, title, desc]) => (
+              <article key={n}>
+                <span>{n}</span>
+                <h3>{title}</h3>
+                <p>{desc}</p>
+                <b aria-hidden="true">
+                  {n === "01" ? "✳︎" : n === "02" ? "♡" : n === "03" ? "✿︎" : "↗"}
+                </b>
+              </article>
+            ))}
+          </div>
+        </section>
+        <div className="ribbon second-ribbon" aria-hidden="true">
+          <span>
+            CARI GIGITAN FAVORITMU ✳︎ GOOD MOOD STARTS WITH GOOD BITES ✳︎ CARI
+            GIGITAN FAVORITMU ✳︎
+          </span>
+        </div>
         {error && !modal && (
           <p role="alert" className="alert">
             {error}
@@ -159,7 +260,7 @@ export default function Home() {
         </section>
         <div className="sectionhead" id="menu">
           <div>
-            <h2>Pilih gigitan favoritmu</h2>
+            <h2>MENU MANISMU.</h2>
             <p>Satu box saja? Rasanya sayang.</p>
           </div>
           <span className="badge">Menu pre-order</span>
@@ -169,7 +270,11 @@ export default function Home() {
             {po?.menus.map((m, i) => (
               <article className="card" key={m.id}>
                 <div className={"food tone" + (i % 4)}>
-                  <i className="gabin" />
+                  <img
+                    className="menu-illustration"
+                    src="/gabin-stack.svg"
+                    alt="Ilustrasi gabin isi vla"
+                  />
                   <span className="foodtag">Homemade gabin</span>
                 </div>
                 <div className="cardbody">
@@ -186,6 +291,16 @@ export default function Home() {
                 </div>
               </article>
             ))}
+            {!loading && !po && (
+              <div className="no-po">
+                <span aria-hidden="true">♡</span>
+                <h3>Lagi siapin yang manis-manis.</h3>
+                <p>
+                  Pre-order belum dibuka. Mampir lagi nanti untuk pilih gabin
+                  favoritmu, ya!
+                </p>
+              </div>
+            )}
             {!loading && po?.menus.length === 0 && (
               <p>Menu sedang disiapkan admin.</p>
             )}
