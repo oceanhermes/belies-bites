@@ -79,3 +79,11 @@ model RateLimit {
  count Int @default(1)
  expiresAt DateTime
 }
+model SimulationDraft {
+ id String @id @default(cuid())
+ period String
+ productionDate String
+ variants Json
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+}

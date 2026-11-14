@@ -1,3 +1,5 @@
+import { simulationDocument } from "../../../lib/simulation-document";
+import { simulationDraftInput } from "../../../lib/simulation-schema";
 import { preorderInput } from "../../../lib/preorder";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
@@ -260,6 +262,55 @@ async function handle(
     }
     if (p.startsWith("admin/")) {
       await requireAdmin();
+      if (p === "admin/simulator" && method === "GET")
+        return new NextResponse(simulationDocument, {
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "no-store",
+            "Content-Security-Policy":
+              "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'",
+            "X-Frame-Options": "SAMEORIGIN",
+          },
+        });
+      if (p === "admin/simulation-drafts" && method === "GET") {
+        const drafts = await db.simulationDraft.findMany({
+          orderBy: { updatedAt: "desc" },
+          take: 200,
+        });
+        return json(
+          drafts.map((d) => ({
+            id: d.id,
+            period: d.period,
+            date: d.productionDate,
+            variants: d.variants,
+            savedAt: d.updatedAt.toISOString(),
+          })),
+        );
+      }
+      const draftMatch = p.match(/^admin\/simulation-drafts\/([^/]+)$/);
+      if (
+        (p === "admin/simulation-drafts" && method === "POST") ||
+        (draftMatch && method === "PATCH")
+      ) {
+        const f = simulationDraftInput.parse(await req.json());
+        const values = {
+          period: f.period,
+          productionDate: f.date,
+          variants: f.variants,
+        };
+        const saved = draftMatch
+          ? await db.simulationDraft.update({
+              where: { id: draftMatch[1] },
+              data: values,
+            })
+          : await db.simulationDraft.create({ data: values });
+        return json({ id: saved.id });
+      }
+      if (draftMatch && method === "DELETE") {
+        await db.simulationDraft.delete({ where: { id: draftMatch[1] } });
+        return json({ ok: true });
+      }
+
       if (p === "admin/logout" && method === "POST") {
         const c = await cookies(),
           s = c.get("bb_session")?.value;
@@ -458,4 +509,4 @@ async function handle(
     return json({ error: m || "Permintaan gagal" }, { status: 400 });
   }
 }
-export { handle as GET, handle as POST, handle as PATCH };
+export { handle as GET, handle as POST, handle as PATCH, handle as DELETE };
